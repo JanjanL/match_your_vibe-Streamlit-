@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -31,11 +32,9 @@ FEATURES = [c for c in [
     "instrumentalness","liveness","speechiness","tempo_norm"] if c in df.columns]
 
 
-
-
 # Sidebar
 with st.sidebar:
-  st.title("Your Singer Finder")
+  st.title("Match your vibe")
 
   # Quick preview
   with st.expander("👀 Peek at the raw data"):
@@ -43,7 +42,7 @@ with st.sidebar:
       st.dataframe(df.head(), use_container_width=True)
 
   # Personality quiz (3 simple questions)
-  st.subheader("🧋 Quick vibe check")
+  st.subheader("🧋 Quick vibe check:")
   mood = st.radio(
       "1) How do you feel today?",
       ["🌙 Calm & cozy", "😊 Happy & sunny", "🖤 Moody & emotional", "🔥 Hyped & bold"],
@@ -123,13 +122,6 @@ TOP_K = 3
 top_rows, seen = [], set()
 primary_artist_col = "artist_primary" if "artist_primary" in work.columns else "artists"
 
-# If your CSV doesn’t have 'artist_primary', try to derive it on the fly
-if "artist_primary" not in work.columns and "artists" in work.columns:
-    work["artist_primary"] = (
-        work["artists"].astype(str).str.split(r";|,", regex=True).str[0].str.strip()
-    )
-    primary_artist_col = "artist_primary"
-
 for _, row in work.sort_values("similarity", ascending=False).iterrows():
     artist_name = row[primary_artist_col]
     if artist_name not in seen:
@@ -137,6 +129,7 @@ for _, row in work.sort_values("similarity", ascending=False).iterrows():
         seen.add(artist_name)
     if len(top_rows) >= TOP_K:
         break
+
 # --- Display matches (Top 3 with BuzzFeed-style copy)
 st.subheader("✨ Your Matches")
 
@@ -146,21 +139,19 @@ else:
     for rank, row in enumerate(top_rows, start=1):
         artist_name = row[primary_artist_col]
         track_name = row.get("track_name", row.get("name", "(track)"))
+        spotify_id = row.get("track_id")
         score = f"{row['similarity']:.2f}"
 
         # Pick the BuzzFeed line per rank
         if rank == 1:
-            # Option 1 — “We crunched the numbers…”
             line = (
                 f"🎉 Wow this track is basically made for your vibe -- *{track_name}*. **Match level: {score}**."
                 )
         elif rank == 2:
-            # Option 2 — “A MATCH MADE IN CHAOTIC‑GOOD HEAVEN”
             line = (
                 f"🔥 Let's try this one -- *{track_name}*. **Match level: {score}**."
                 )
         else:  # rank == 3
-            # Option 3 — “Scientists Hate It…”
             line = (
                 f"🤯 Well… let’s give it a chance *{track_name}*. **Match level: {score}**."
                 )
@@ -176,5 +167,14 @@ else:
                     badges.append(f"{emoji} {f}: {row[f]:.2f}")
             if badges:
                 st.caption(" · ".join(badges))
+          
+
+            if spotify_id:
+                    try:
+                        st.link_button("🎧 Listen on Spotify", f"https://open.spotify.com/track/{spotify_id}", type="primary")
+                    except Exception:
+                        st.markdown(f"[🎧 Listen on Spotify](https://open.spotify.com/track/{spotify_id})")
+            else:
+                st.caption("🎧 Spotify link unavailable for this track.")
 
 
